@@ -366,10 +366,10 @@ public class SugarRecord {
         for (Field field : columns) {
             field.setAccessible(true);
             Class<?> fieldType = field.getType();
-            if (inflateAssociation && isSugarEntity(fieldType)) {
+            if (isSugarEntity(fieldType)) {
                 try {
                     long id = cursor.getLong(cursor.getColumnIndex(NamingHelper.toSQLName(field)));
-                    field.set(object, (id > 0) ? findById(fieldType, id) : null);
+                    field.set(object, (inflateAssociation && id > 0) ? findById(fieldType, id) : null);
                 } catch (IllegalAccessException e) {
                     e.printStackTrace();
                 }
