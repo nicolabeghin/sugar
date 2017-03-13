@@ -30,6 +30,7 @@ public class SugarRecord {
 
     public static final String SUGAR = "Sugar";
     private Long id = null;
+    protected static boolean DEFAULT_INFLATE_ASSOCIATION = true;
 
     private static SQLiteDatabase getSugarDataBase() {
         return getSugarContext().getSugarDb().getDB();
@@ -198,19 +199,27 @@ public class SugarRecord {
     }
 
     public static <T> List<T> find(Class<T> type, String whereClause, String[] whereArgs, String groupBy, String orderBy, String limit) {
+        return find(type, whereClause, whereArgs, groupBy, orderBy, limit, DEFAULT_INFLATE_ASSOCIATION);
+    }
+
+    public static <T> List<T> find(Class<T> type, String whereClause, String[] whereArgs, String groupBy, String orderBy, String limit, boolean inflateAssociation) {
         Cursor cursor = getSugarDataBase().query(NamingHelper.toSQLName(type), null, whereClause, whereArgs,
                 groupBy, null, orderBy, limit);
 
-        return getEntitiesFromCursor(cursor, type);
+        return getEntitiesFromCursor(cursor, type, inflateAssociation);
     }
 
     public static <T> List<T> getEntitiesFromCursor(Cursor cursor, Class<T> type){
+        return getEntitiesFromCursor(cursor, type, DEFAULT_INFLATE_ASSOCIATION);
+    }
+
+    public static <T> List<T> getEntitiesFromCursor(Cursor cursor, Class<T> type, boolean inflateAssociation){
         T entity;
         List<T> result = new ArrayList<T>();
         try {
             while (cursor.moveToNext()) {
                 entity = type.getDeclaredConstructor().newInstance();
-                inflate(cursor, entity, getSugarContext().getEntitiesMap());
+                inflate(cursor, entity, getSugarContext().getEntitiesMap(), inflateAssociation);
                 result.add(entity);
             }
         } catch (Exception e) {
@@ -348,16 +357,16 @@ public class SugarRecord {
         return objectClass.isAnnotationPresent(Table.class) || SugarRecord.class.isAssignableFrom(objectClass);
     }
 
-    private static void inflate(Cursor cursor, Object object, Map<Object, Long> entitiesMap) {
+    private static void inflate(Cursor cursor, Object object, Map<Object, Long> entitiesMap, boolean inflateAssociation) {
         List<Field> columns = ReflectionUtil.getTableFields(object.getClass());
         if (!entitiesMap.containsKey(object)) {
             entitiesMap.put(object, cursor.getLong(cursor.getColumnIndex(("ID"))));
         }
 
         for (Field field : columns) {
-        	field.setAccessible(true);
+            field.setAccessible(true);
             Class<?> fieldType = field.getType();
-            if (isSugarEntity(fieldType)) {
+            if (inflateAssociation && isSugarEntity(fieldType)) {
                 try {
                     long id = cursor.getLong(cursor.getColumnIndex(NamingHelper.toSQLName(field)));
                     field.set(object, (id > 0) ? findById(fieldType, id) : null);
@@ -368,6 +377,10 @@ public class SugarRecord {
                 ReflectionUtil.setFieldValueFromCursor(cursor, field, object);
             }
         }
+    }
+
+    private static void inflate(Cursor cursor, Object object, Map<Object, Long> entitiesMap) {
+        inflate(cursor, object, entitiesMap, true);
     }
 
     public boolean delete() {
@@ -436,10 +449,16 @@ public class SugarRecord {
     static class CursorIterator<E> implements Iterator<E> {
         Class<E> type;
         Cursor cursor;
+        boolean inflateAssociation = DEFAULT_INFLATE_ASSOCIATION;
 
         public CursorIterator(Class<E> type, Cursor cursor) {
             this.type = type;
             this.cursor = cursor;
+        }
+
+        public CursorIterator(Class<E> type, Cursor cursor, boolean inflateAssociation) {
+            this(type, cursor);
+            this.inflateAssociation = inflateAssociation;
         }
 
         @Override
