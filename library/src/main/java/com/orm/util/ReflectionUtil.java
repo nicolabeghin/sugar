@@ -66,7 +66,12 @@ public class ReflectionUtil {
             String columnName = NamingHelper.toSQLName(column);
             Object columnValue = column.get(object);
 
-            if (columnType.isAnnotationPresent(Table.class)) {
+            if (SugarRecord.class.isAssignableFrom(columnType)) {
+                values.put(columnName,
+                        (columnValue != null)
+                                ? String.valueOf(((SugarRecord) columnValue).getId())
+                                : "0");
+            } else if (columnType.isAnnotationPresent(Table.class)) {
                 Field field;
                 try {
                     field = columnType.getDeclaredField("id");
@@ -79,11 +84,6 @@ public class ReflectionUtil {
                         values.put(columnName, entitiesMap.get(columnValue));
                     }
                 }
-            } else if (SugarRecord.class.isAssignableFrom(columnType)) {
-                values.put(columnName,
-                        (columnValue != null)
-                                ? String.valueOf(((SugarRecord) columnValue).getId())
-                                : "0");
             } else {
                 if (columnType.equals(Short.class) || columnType.equals(short.class)) {
                     values.put(columnName, (Short) columnValue);
