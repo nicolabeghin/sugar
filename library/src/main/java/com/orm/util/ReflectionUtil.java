@@ -161,6 +161,11 @@ public class ReflectionUtil {
                 return;
             }
 
+            // nbeghin 23.03.2017 ksoap2 handling - ignore java.util.Vector to avoid log polluting
+            if (fieldType.equals(java.util.Vector.class)) {
+                return;
+            }
+
             if (colName.equalsIgnoreCase("id")) {
                 long cid = cursor.getLong(columnIndex);
                 field.set(object, Long.valueOf(cid));
